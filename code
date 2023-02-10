@@ -1,0 +1,53 @@
+import math
+
+def utm_to_cassini(east, north, zone, hemisphere):
+    """Convert UTM coordinates to Cassini coordinates"""
+    a = 6378137.0
+    e = 0.0818191910428158
+    k0 = 0.9996
+
+    x = (east - 500000) / k0
+    y = north / k0 if hemisphere == "N" else (north - 10000000) / k0
+
+    phi1 = math.asin(y / a)
+    M = math.tan(phi1) / (2 * e * math.sin(phi1) ** 3)
+    C = (e / 2) * (math.cos(phi1) ** 2) * ((math.sin(phi1) ** 2) / (1 - (math.sin(phi1) ** 2)))
+    phi2 = phi1 - (M * (C + 1))
+
+    while abs(phi1 - phi2) > 0.000000001:
+        phi1 = phi2
+        M = math.tan(phi1) / (2 * e * math.sin(phi1) ** 3)
+        C = (e / 2) * (math.cos(phi1) ** 2) * ((math.sin(phi1) ** 2) / (1 - (math.sin(phi1) ** 2)))
+        phi2 = phi1 - (M * (C + 1))
+
+    longitude = (zone * 6 - 183) * math.pi / 180
+    latitude = phi2
+
+    return longitude, latitude
+
+def cassini_to_utm(longitude, latitude):
+    """Convert Cassini coordinates to UTM coordinates"""
+    a = 6378137.0
+    e = 0.0818191910428158
+    k0 = 0.9996
+
+    phi = latitude
+    lambda_ = longitude
+
+    zone = math.floor((lambda_ + 183) / 6) + 1
+    lambda0 = (zone * 6 - 183) * math.pi / 180
+
+    N = a / math.sqrt(1 - (e * math.sin(phi) ** 2))
+    T = math.tan(phi) ** 2
+    C = (e / 2) * (math.cos(phi) ** 2) * ((math.sin(phi) ** 2) / (1 - (math.sin(phi) ** 2)))
+    A = (lambda_ - lambda0) * math.cos(phi)
+    M = a * ((1 - e * math.sin(phi) ** 2) / (1 - (e * math.sin(phi) ** 2)) ** 3)
+
+    east = 500000 + (k0 * N * (A + (1 / 2) * (A ** 3) * (C + 1)))
+    north = k0 * (M + N * math.tan(phi) * (A ** 2 / 2 + (1 / 6) * (A ** 4) * (C + 1)))
+
+    if latitude < 0:
+        north = 10000000 + north
+
+    return east, north, zone, "N" if latitude >= 0 else "S"
+
